@@ -1,0 +1,308 @@
+openapi: 3.0.3
+info:
+  title: Milliways API
+  version: 1.0.0
+  description: Ordering API for Milliways, the Restaurant at the End of the Universe.
+servers:
+  - url: http://localhost:3001
+tags:
+  - name: auth
+  - name: menu
+  - name: orders
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      summary: Health check
+      responses:
+        '200':
+          description: API is up
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok: { type: boolean }
+  /auth/signup:
+    post:
+      operationId: signUp
+      tags: [auth]
+      summary: Create an account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Credentials' }
+      responses:
+        '201':
+          description: Account created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthSession' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409':
+          description: Email already exists
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /auth/signin:
+    post:
+      operationId: signIn
+      tags: [auth]
+      summary: Sign in
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Credentials' }
+      responses:
+        '200':
+          description: Signed in
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthSession' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /menu:
+    get:
+      operationId: getMenu
+      tags: [menu]
+      summary: List the menu by section
+      responses:
+        '200':
+          description: Menu
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [sections]
+                properties:
+                  sections:
+                    type: array
+                    items: { $ref: '#/components/schemas/MenuSection' }
+  /orders:
+    post:
+      operationId: createOrder
+      tags: [orders]
+      summary: Place an order
+      description: |
+        Prices and validates the order. Delivery fees: STANDARD 0, EXPRESS 800, TELEPORT 1500, PICKUP 0 (cents).
+        STANDARD and EXPRESS add a distance surcharge outside EARTH. Coupons discount food only.
+        TELEPORT is unavailable to KRIKKIT and cannot be paid CASH_ON_DELIVERY. PICKUP is EARTH only.
+      security: [{ demoToken: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateOrderRequest' }
+      responses:
+        '201':
+          description: Order placed
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [order]
+                properties:
+                  order: { $ref: '#/components/schemas/Order' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422':
+          description: Valid shape, but the combination is not allowed (e.g. teleport to Krikkit, cash on teleport, coupon not applicable)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+    get:
+      operationId: listOrders
+      tags: [orders]
+      summary: List the signed-in user's orders, newest first
+      security: [{ demoToken: [] }]
+      responses:
+        '200':
+          description: Orders
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [orders]
+                properties:
+                  orders:
+                    type: array
+                    items: { $ref: '#/components/schemas/Order' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /orders/{id}/status:
+    get:
+      operationId: getOrderStatus
+      tags: [orders]
+      summary: Current status of an order
+      security: [{ demoToken: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Order status
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [order]
+                properties:
+                  order:
+                    type: object
+                    required: [id, status, updatedAt]
+                    properties:
+                      id: { type: integer }
+                      status: { $ref: '#/components/schemas/OrderStatus' }
+                      deliveryMethod: { $ref: '#/components/schemas/DeliveryMethod' }
+                      estimatedMinutes: { type: integer }
+                      updatedAt: { type: string, format: date-time }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404':
+          description: Order not found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+components:
+  securitySchemes:
+    demoToken:
+      type: http
+      scheme: bearer
+      description: Token from sign-up or sign-in (demo-user-<id>)
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Unauthorized:
+      description: Missing or invalid token / credentials
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
+    Credentials:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, minLength: 1 }
+    AuthSession:
+      type: object
+      required: [user, token]
+      properties:
+        user:
+          type: object
+          required: [id, email]
+          properties:
+            id: { type: integer }
+            email: { type: string, format: email }
+        token: { type: string }
+    MenuSection:
+      type: object
+      required: [title, items]
+      properties:
+        title:
+          type: string
+          enum: [MAIN DISHES, DRINKS]
+        items:
+          type: array
+          items:
+            type: object
+            required: [id, name, description, priceCents]
+            properties:
+              id: { type: integer }
+              name: { type: string }
+              description: { type: string }
+              priceCents: { type: integer }
+              color: { type: string }
+              imageName: { type: string }
+    DeliveryMethod:
+      type: string
+      enum: [STANDARD, EXPRESS, TELEPORT, PICKUP]
+    Planet:
+      type: string
+      enum: [EARTH, MAGRATHEA, BETELGEUSE_V, SANTRAGINUS_V, KRIKKIT]
+    PaymentMethod:
+      type: string
+      enum: [CARD, BABEL_FISH_CREDITS, GALACTIC_EXPRESS, CASH_ON_DELIVERY]
+    SpiceLevel:
+      type: string
+      enum: [MILD, MEDIUM, HOT, SUPERNOVA]
+    OrderStatus:
+      type: string
+      enum: [received, preparing, out_for_delivery, delivered]
+    CreateOrderRequest:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [menuItemId, quantity]
+            properties:
+              menuItemId: { type: integer }
+              quantity: { type: integer, minimum: 1, maximum: 20 }
+              spiceLevel:
+                $ref: '#/components/schemas/SpiceLevel'
+        delivery:
+          type: object
+          required: [method, planet]
+          properties:
+            method: { $ref: '#/components/schemas/DeliveryMethod' }
+            planet: { $ref: '#/components/schemas/Planet' }
+            address:
+              type: string
+              description: Required unless method is PICKUP
+            instructions: { type: string, maxLength: 200 }
+        payment:
+          type: object
+          required: [method]
+          properties:
+            method: { $ref: '#/components/schemas/PaymentMethod' }
+            tipPercent:
+              type: integer
+              enum: [0, 10, 15, 20]
+        couponCode:
+          type: string
+          pattern: '^[A-Za-z0-9]{4,12}$'
+          description: DONTPANIC (42% off food, min subtotal 2000) or TOWELDAY (25% off, PICKUP only)
+    Order:
+      type: object
+      required: [id, status, totalCents, createdAt]
+      properties:
+        id: { type: integer }
+        status: { $ref: '#/components/schemas/OrderStatus' }
+        totalCents: { type: integer }
+        breakdown:
+          type: object
+          properties:
+            subtotalCents: { type: integer }
+            deliveryFeeCents: { type: integer }
+            discountCents: { type: integer }
+            tipCents: { type: integer }
+        delivery:
+          type: object
+          properties:
+            method: { $ref: '#/components/schemas/DeliveryMethod' }
+            planet: { $ref: '#/components/schemas/Planet' }
+            address: { type: string, nullable: true }
+            estimatedMinutes: { type: integer }
+        payment:
+          type: object
+          properties:
+            method: { $ref: '#/components/schemas/PaymentMethod' }
+            tipPercent: { type: integer }
+        couponCode: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
