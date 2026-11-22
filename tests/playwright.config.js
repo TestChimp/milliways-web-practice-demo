@@ -45,6 +45,8 @@ export default defineConfig({
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     baseURL:process.env.BASE_URL,
+    /* DAST: route traffic through OWASP ZAP when ZAP_PROXY is set (e.g. http://localhost:8090). */
+    ...(process.env.ZAP_PROXY ? { proxy: { server: process.env.ZAP_PROXY } } : {}),
     /* Per-step locator/API wait; without this, Playwright uses the test timeout for each action.
      * Existing projects may omit this in Git; TestChimp platform runs still inject the same default
      * (15s) into playwright.config when materializing the workspace before `playwright test`. */
