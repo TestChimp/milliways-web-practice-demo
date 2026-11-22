@@ -56,3 +56,7 @@ tests/playwright-report/
 tests/blob-report/
 
 web/public/rum-config.json
+tests/k6/lib/handleSummary.js
+tests/k6/lib/ingest.js
+tests/k6/lib/downsample.js
+tests/k6/artifacts/runs/

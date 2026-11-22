@@ -1,0 +1,8 @@
+# Reporter files downloaded by scripts/prepare.sh. Do not commit.
+# Scaffold helpers in this folder (dataset.js, volume-size.js, think-time.js, mocks) are tracked.
+handleSummary.js
+ingest.js
+downsample.js
+.version
+testchimp-k6-handleSummary.js
+testchimp-k6-ingest.js

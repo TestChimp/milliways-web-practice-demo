@@ -17,12 +17,12 @@ changes. Ask before running a composite not named in the approved plan.
 
 ## Environment safety
 
-- allowed_environment: <!-- isolated perf/staging environment name -->
-- base_url_source: <!-- variable or connect-to-test-env output -->
-- health_check: <!-- command/URL and expected result -->
+- allowed_environment: local docker stack (demo only)
+- base_url_source: API_BASE_URL (tests/.env-QA, default http://localhost:3001)
+- health_check: curl -sf http://localhost:3001/health returns {"ok":true}
 - production_allowed: false
-- owner: <!-- team/person approving load -->
-- abort_command: <!-- deterministic emergency stop -->
+- owner: TestChimp team (demo project)
+- abort_command: Ctrl+C the k6 process; docker compose restart api
 
 ## Approved profile limits
 
@@ -32,12 +32,12 @@ smoke:
   max_duration: 30s
 load:
   # Peak concurrent users (ramping-vus). Null until the team sets N.
-  max_vus: null
+  max_vus: 20
   think_time_sec: 1
-  ramp_step: 30s
-  hold_at_peak: null
+  ramp_step: 15s
+  hold_at_peak: 30s
   max_rps: null
-  max_duration: null
+  max_duration: 2m
 volume:
   max_vus: 1
   # 10/50/100 holds in one k6 run (volume_size chart). Null until approved.
@@ -53,9 +53,9 @@ Do not derive values from production observations.
 
 ## Data lifecycle
 
-- seed_command: <!-- command or SEED_URL contract -->
-- teardown_command: <!-- required for generated state -->
-- namespace: <!-- perf-test namespace/prefix -->
+- seed_command: none — journeys create their own guests via POST /auth/signup
+- teardown_command: docker compose down -v (local demo DB)
+- namespace: perf- email prefix
 - permitted_dataset_manifests:
   - k6/datasets/load.example.json
   - k6/datasets/volume.example.json
@@ -82,7 +82,7 @@ Do not derive values from production observations.
 
 ## Baseline and comparison
 
-- baseline_environment: <!-- must match run -->
+- baseline_environment: local docker stack
 - require_matching_profile: true
 - require_matching_dataset: true
 - require_matching_llm_mode: true
