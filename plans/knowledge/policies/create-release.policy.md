@@ -1,60 +1,52 @@
 ---
 workflow-id: create-release
 version: 1.0.0
+allow-execute-without-approval: false
 ---
-
-[SEED POLICY - REQUIRE USER DECISIONS TO LOCK-IN]
 
 ### Summary
 
-# Fill after lock-in. Until then this file is a skeleton only — agents must not
-# treat blank keys as decisions.
+Release QA posture for Milliways. Locked with the recommended defaults (project owner, 2026-11-23).
 
 ### Tag convention
 
-# unset until locked — e.g. semver major.minor.patch ; optional prefix (release-)
+semver `vMAJOR.MINOR.PATCH` (e.g. `v1.0.0`).
 
 ### Scope default
 
-# unset until locked
-# MAJOR: full
-# MINOR: changed
-# HOTFIX: changed
+- MAJOR: full (focus area: root `plans/stories`)
+- MINOR: changed
+- HOTFIX: changed
 
 ### By release type
 
 ## MAJOR
 
-# unset until locked:
-# - upkeep:                 # yes | no
-# - suite_execution:        # full | smart-smoke  (CI find/link is runtime preference, not a policy value)
-# - explorechimp:           # yes | no
-# - perf:                   # upkeep-and-run | run | never
-# - security_static:        # yes | no
-# - security_dast:          # ask | never
+- upkeep: no (suite authored for this release; nothing to trim yet)
+- suite_execution: full
+- explorechimp: yes
+- perf: run
+- security_static: yes
+- security_dast: ask
 
 ## MINOR
 
-# unset until locked:
-# - upkeep:
-# - suite_execution:
-# - explorechimp:
-# - perf:
-# - security_static:
-# - security_dast:
+- upkeep: no
+- suite_execution: smart-smoke
+- explorechimp: yes
+- perf: run
+- security_static: no
+- security_dast: never
 
 ## HOTFIX
 
-# unset until locked:
-# - upkeep:
-# - suite_execution:
-# - explorechimp:
-# - perf:
-# - security_static:
-# - security_dast:
+- upkeep: no
+- suite_execution: smart-smoke
+- explorechimp: no
+- perf: never
+- security_static: no
+- security_dast: never
 
 ### Subflows
 
-# Catalog ids agents may nest once policy enables them:
-# upkeep, execute-tests, run-smart-smoke, run-explorechimp,
-# upkeep-perf, run-perf-tests, run-release-check
+upkeep, execute-tests, run-smart-smoke, run-explorechimp, upkeep-perf, run-perf-tests, run-release-check
