@@ -27,6 +27,8 @@ dotenv.config({
  * Config file lives in tests/; testDir values are relative to this file.
  */
 export default defineConfig({
+  /* ExploreChimp screen-state captures add a few seconds per markScreenState. */
+  timeout: 60 * 1000,
   /* Run tests in files in parallel */
   fullyParallel: true,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
