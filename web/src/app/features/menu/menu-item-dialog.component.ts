@@ -2,6 +2,7 @@ import { DecimalPipe, TitleCasePipe } from '@angular/common';
 import { Component, inject, input, output, signal } from '@angular/core';
 import { MenuItem, SPICE_LEVELS, SpiceLevel } from '../../core/models';
 import { CartService } from '../../core/cart.service';
+import { emitProductEvent, quantityBucket } from '../../core/rum';
 
 @Component({
   selector: 'app-menu-item-dialog',
@@ -126,6 +127,11 @@ export class MenuItemDialogComponent {
   add(): void {
     const spiceLevel = this.item().section === 'MAIN DISHES' ? this.spice() : undefined;
     this.cart.addItem(this.item(), this.quantity(), spiceLevel);
+    emitProductEvent('item-added-to-order', {
+      'item.section': this.item().section === 'DRINKS' ? 'drink' : 'main',
+      'item.spice_level': spiceLevel ? spiceLevel.toLowerCase() : 'none',
+      'item.quantity_bucket': quantityBucket(this.quantity()),
+    });
     this.closed.emit();
   }
 

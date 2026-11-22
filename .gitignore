@@ -54,3 +54,5 @@ docker-compose.override.yml
 tests/test-results/
 tests/playwright-report/
 tests/blob-report/
+
+web/public/rum-config.json

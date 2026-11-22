@@ -3,6 +3,7 @@ import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { ApiService } from './api.service';
 import { AuthSession, DemoUser } from './models';
+import { emitProductEvent } from './rum';
 
 const SESSION_KEY = 'milliways_session';
 
@@ -33,9 +34,11 @@ export class AuthService {
     try {
       const session = await firstValueFrom(this.api.signIn(email, password));
       this.persistSession(session);
+      emitProductEvent('signed-in');
       return true;
     } catch (err) {
       this.authError.set(this.messageFrom(err));
+      emitProductEvent('sign-in-failed', { 'error.kind': this.statusOf(err) === 401 ? 'invalid_credentials' : 'other' });
       return false;
     } finally {
       this.authLoading.set(false);
@@ -48,9 +51,11 @@ export class AuthService {
     try {
       const session = await firstValueFrom(this.api.signUp(email, password));
       this.persistSession(session);
+      emitProductEvent('signed-up');
       return true;
     } catch (err) {
       this.authError.set(this.messageFrom(err));
+      emitProductEvent('sign-up-failed', { 'error.kind': this.statusOf(err) === 409 ? 'email_taken' : 'other' });
       return false;
     } finally {
       this.authLoading.set(false);
@@ -76,6 +81,10 @@ export class AuthService {
     } catch {
       return null;
     }
+  }
+
+  private statusOf(err: unknown): number | undefined {
+    return err && typeof err === 'object' && 'status' in err ? (err as { status?: number }).status : undefined;
   }
 
   private messageFrom(err: unknown): string {

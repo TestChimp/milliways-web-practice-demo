@@ -1,0 +1,6 @@
+{
+  "projectId": "<TestChimp project id>",
+  "apiKey": "<TestChimp project API key>",
+  "environment": "QA",
+  "release": "1.0.0"
+}

@@ -2,6 +2,7 @@ import { DecimalPipe, TitleCasePipe } from '@angular/common';
 import { Component, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { CartService } from '../../core/cart.service';
+import { emitProductEvent } from '../../core/rum';
 
 @Component({
   selector: 'app-delivery',
@@ -33,6 +34,9 @@ export class DeliveryComponent implements OnInit, OnDestroy {
     if (first) {
       this.headlineItem = first;
     }
+    emitProductEvent('delivery-tracked', {
+      'delivery.method': (this.cart.submittedOrder()?.delivery?.method ?? 'STANDARD').toLowerCase(),
+    });
     void this.cart.refreshSubmittedOrderStatus();
     this.pollTimer = setInterval(() => void this.cart.refreshSubmittedOrderStatus(), 3000);
     this.countdownTimer = setInterval(() => {
@@ -50,6 +54,7 @@ export class DeliveryComponent implements OnInit, OnDestroy {
   }
 
   close(): void {
+    emitProductEvent('delivery-closed');
     this.cart.clearOrder();
     void this.router.navigate(['/welcome']);
   }

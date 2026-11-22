@@ -2,6 +2,7 @@ import { DecimalPipe } from '@angular/common';
 import { Component, inject, OnInit, output } from '@angular/core';
 import { AuthService } from '../../core/auth.service';
 import { OrdersService } from '../../core/orders.service';
+import { countBucket, emitProductEvent } from '../../core/rum';
 
 @Component({
   selector: 'app-account',
@@ -22,7 +23,9 @@ export class AccountComponent implements OnInit {
   readonly error = this.ordersService.error;
 
   ngOnInit(): void {
-    void this.ordersService.loadOrders();
+    void this.ordersService.loadOrders().then(() =>
+      emitProductEvent('order-history-viewed', { 'history.order_count_bucket': countBucket(this.orders().length) }),
+    );
   }
 
   totalSpent(): number {

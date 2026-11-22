@@ -2,6 +2,7 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { ApiService } from './api.service';
 import { AuthService } from './auth.service';
+import { countBucket, emitProductEvent } from './rum';
 import { BackendOrder, BackendOrderStatus, CartLine, CheckoutOptions, MenuItem, SpiceLevel } from './models';
 
 const DEFAULT_CHECKOUT: CheckoutOptions = {
@@ -77,6 +78,12 @@ export class CartService {
     };
     try {
       const order = await firstValueFrom(this.api.createOrder(request, token));
+      emitProductEvent('order-placed', {
+        ...this.checkoutSlice(),
+        'order.has_coupon': !!request.couponCode,
+        'order.tip_percent': c.tipPercent,
+        'order.item_count_bucket': countBucket(this.totalQuantity()),
+      });
       this.submittedOrder.set(order);
       this.latestOrderStatus.set({
         id: order.id,
@@ -87,8 +94,20 @@ export class CartService {
       });
       return { ok: true };
     } catch (err) {
-      return { ok: false, error: this.messageFrom(err) };
+      const error = this.messageFrom(err);
+      emitProductEvent('order-rejected', { ...this.checkoutSlice(), 'error.kind': rejectionKind(error) });
+      return { ok: false, error };
     }
+  }
+
+  /** Low-cardinality checkout dimensions shared by order events. */
+  private checkoutSlice(): Record<string, string> {
+    const c = this.checkout();
+    return {
+      'delivery.method': c.deliveryMethod.toLowerCase(),
+      'delivery.planet': c.planet.toLowerCase(),
+      'payment.method': c.paymentMethod.toLowerCase(),
+    };
   }
 
   async refreshSubmittedOrderStatus(): Promise<void> {
@@ -110,4 +129,13 @@ export class CartService {
     }
     return 'Request failed';
   }
+}
+
+function rejectionKind(message: string): string {
+  if (/address is required/i.test(message)) return 'address_missing';
+  if (/not available to Krikkit/i.test(message)) return 'teleport_destination';
+  if (/Cash on delivery/i.test(message)) return 'payment_not_allowed';
+  if (/Pickup is only available/i.test(message)) return 'pickup_destination';
+  if (/Coupon .* (is not valid|is only valid|needs a subtotal)/i.test(message)) return 'coupon';
+  return 'other';
 }

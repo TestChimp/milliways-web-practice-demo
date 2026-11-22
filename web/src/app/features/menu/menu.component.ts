@@ -5,6 +5,7 @@ import { MenuService } from '../../core/menu.service';
 import { CartService } from '../../core/cart.service';
 import { MenuItem } from '../../core/models';
 import { MenuItemDialogComponent } from './menu-item-dialog.component';
+import { countBucket, emitProductEvent } from '../../core/rum';
 
 const COLOR_MAP: Record<string, string> = {
   brown: '#8B4513',
@@ -40,6 +41,7 @@ export class MenuComponent implements OnInit {
 
   ngOnInit(): void {
     void this.menuService.loadMenu();
+    emitProductEvent('menu-viewed', { 'order.item_count_bucket': countBucket(this.totalQuantity()) });
   }
 
   openItem(item: MenuItem): void {
