@@ -5,6 +5,15 @@
     <h1>Your {{ headlineItem }} is on its way!</h1>
     <p class="status">Status: {{ statusText() | titlecase }}</p>
 
+    @if (order(); as o) {
+      <p class="method">
+        {{ methodLabel() }} · Total ₭{{ o.totalCents / 100 | number: '1.2-2' }}
+        @if (o.breakdown && o.breakdown.discountCents > 0) {
+          <span class="saved">(saved ₭{{ o.breakdown.discountCents / 100 | number: '1.2-2' }})</span>
+        }
+      </p>
+    }
+
     <p class="countdown">
       {{ minutesRemaining() | number: '1.8-8' }} minutes for delivery
     </p>

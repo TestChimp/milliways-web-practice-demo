@@ -133,3 +133,45 @@ header {
     cursor: not-allowed;
   }
 }
+
+.spice-tag {
+  font-size: 0.75rem;
+  color: #c62828;
+  margin-left: 0.25rem;
+}
+
+.checkout {
+  background: #fff;
+  margin: 0.75rem 0;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+
+  fieldset {
+    border: 1px solid #eee;
+    border-radius: 8px;
+    padding: 0.5rem 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  legend {
+    font-weight: 600;
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    font-size: 0.9rem;
+
+    input,
+    select {
+      padding: 0.5rem;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+    }
+  }
+}

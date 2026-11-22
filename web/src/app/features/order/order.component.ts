@@ -2,6 +2,7 @@ import { DecimalPipe } from '@angular/common';
 import { Component, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { CartService } from '../../core/cart.service';
+import { CheckoutOptions, DELIVERY_METHODS, PAYMENT_METHODS, PLANETS, TIP_PERCENTS } from '../../core/models';
 
 const COLOR_MAP: Record<string, string> = {
   brown: '#8B4513',
@@ -27,6 +28,19 @@ export class OrderComponent {
 
   readonly lines = this.cart.lines;
   readonly totalPrice = this.cart.totalPrice;
+  readonly checkout = this.cart.checkout;
+  readonly deliveryMethods = DELIVERY_METHODS;
+  readonly planets = PLANETS;
+  readonly paymentMethods = PAYMENT_METHODS;
+  readonly tipPercents = TIP_PERCENTS;
+
+  update<K extends keyof CheckoutOptions>(key: K, value: CheckoutOptions[K]): void {
+    this.cart.updateCheckout({ [key]: value } as Partial<CheckoutOptions>);
+  }
+
+  spiceLabel(level?: string): string {
+    return level ? level.charAt(0) + level.slice(1).toLowerCase() : '';
+  }
 
   orderError = signal<string | null>(null);
   submitting = signal(false);

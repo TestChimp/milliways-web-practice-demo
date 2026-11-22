@@ -120,6 +120,20 @@ export async function initializeDatabase() {
       price_cents INTEGER NOT NULL,
       quantity INTEGER NOT NULL
     );
+
+    ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_method TEXT NOT NULL DEFAULT 'STANDARD';
+    ALTER TABLE orders ADD COLUMN IF NOT EXISTS planet TEXT NOT NULL DEFAULT 'EARTH';
+    ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_address TEXT;
+    ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_instructions TEXT;
+    ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_method TEXT NOT NULL DEFAULT 'CARD';
+    ALTER TABLE orders ADD COLUMN IF NOT EXISTS tip_percent INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE orders ADD COLUMN IF NOT EXISTS coupon_code TEXT;
+    ALTER TABLE orders ADD COLUMN IF NOT EXISTS subtotal_cents INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_fee_cents INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE orders ADD COLUMN IF NOT EXISTS discount_cents INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE orders ADD COLUMN IF NOT EXISTS tip_cents INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE orders ADD COLUMN IF NOT EXISTS estimated_minutes INTEGER NOT NULL DEFAULT 45;
+    ALTER TABLE order_items ADD COLUMN IF NOT EXISTS spice_level TEXT;
   `);
 
   await seedMenuItems();

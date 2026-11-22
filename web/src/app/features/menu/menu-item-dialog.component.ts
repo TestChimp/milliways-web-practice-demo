@@ -1,18 +1,29 @@
-import { DecimalPipe } from '@angular/common';
+import { DecimalPipe, TitleCasePipe } from '@angular/common';
 import { Component, inject, input, output, signal } from '@angular/core';
-import { MenuItem } from '../../core/models';
+import { MenuItem, SPICE_LEVELS, SpiceLevel } from '../../core/models';
 import { CartService } from '../../core/cart.service';
 
 @Component({
   selector: 'app-menu-item-dialog',
   standalone: true,
-  imports: [DecimalPipe],
+  imports: [DecimalPipe, TitleCasePipe],
   template: `
     <div class="overlay" role="dialog" aria-modal="true" (click)="onBackdrop($event)">
       <div class="dialog" (click)="$event.stopPropagation()">
         <h2>{{ item().name }}</h2>
         <p class="desc">{{ item().description }}</p>
         <p class="price">₭{{ item().price | number: '1.2-2' }}</p>
+
+        @if (item().section === 'MAIN DISHES') {
+          <label class="spice">
+            Spice level
+            <select aria-label="Spice level" (change)="spice.set($any($event.target).value)">
+              @for (level of spiceLevels; track level) {
+                <option [value]="level" [selected]="level === spice()">{{ level | titlecase }}</option>
+              }
+            </select>
+          </label>
+        }
 
         <div class="qty-row">
           <button type="button" aria-label="Decrease quantity" (click)="dec()">−</button>
@@ -55,6 +66,13 @@ import { CartService } from '../../core/cart.service';
       color: #ff8c00;
       margin: 0 0 1rem;
     }
+    .spice {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+      select { padding: 0.4rem; border-radius: 6px; }
+    }
     .qty-row {
       display: flex;
       align-items: center;
@@ -94,6 +112,8 @@ export class MenuItemDialogComponent {
 
   private readonly cart = inject(CartService);
   readonly quantity = signal(1);
+  readonly spiceLevels = SPICE_LEVELS;
+  readonly spice = signal<SpiceLevel>('MILD');
 
   inc(): void {
     this.quantity.update((q) => q + 1);
@@ -104,7 +124,8 @@ export class MenuItemDialogComponent {
   }
 
   add(): void {
-    this.cart.addItem(this.item(), this.quantity());
+    const spiceLevel = this.item().section === 'MAIN DISHES' ? this.spice() : undefined;
+    this.cart.addItem(this.item(), this.quantity(), spiceLevel);
     this.closed.emit();
   }
 

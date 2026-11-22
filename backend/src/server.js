@@ -3,6 +3,7 @@ import cors from 'cors';
 import express from 'express';
 import { query, waitForDatabase, withTransaction } from './db.js';
 import { initializeDatabase } from './schema.js';
+import { CheckoutError, SPICE_LEVELS, normalizeCheckout, priceOrder, validateCheckout } from './checkout.js';
 
 const app = express();
 const port = Number(process.env.PORT ?? 3000);
@@ -23,6 +24,30 @@ function publicUser(row) {
   return {
     id: row.id,
     email: row.email,
+  };
+}
+
+function orderDto(row) {
+  return {
+    id: row.id,
+    status: row.status,
+    totalCents: row.total_cents,
+    breakdown: {
+      subtotalCents: row.subtotal_cents,
+      deliveryFeeCents: row.delivery_fee_cents,
+      discountCents: row.discount_cents,
+      tipCents: row.tip_cents,
+    },
+    delivery: {
+      method: row.delivery_method,
+      planet: row.planet,
+      address: row.delivery_address,
+      estimatedMinutes: row.estimated_minutes,
+    },
+    payment: { method: row.payment_method, tipPercent: row.tip_percent },
+    couponCode: row.coupon_code,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
   };
 }
 
@@ -147,51 +172,81 @@ app.post('/orders', requireUser, async (req, res, next) => {
       return res.status(400).json({ error: 'Order must include at least one item' });
     }
 
+    const checkout = normalizeCheckout(body);
+    validateCheckout(checkout);
+
     const order = await withTransaction(async (client) => {
-      let totalCents = 0;
       const orderItems = [];
 
       for (const item of items) {
         const menuItemId = Number(item.menuItemId);
         const quantity = Number(item.quantity);
+        const spiceLevel = item.spiceLevel ?? null;
 
-        if (!Number.isInteger(menuItemId) || !Number.isInteger(quantity) || quantity < 1) {
-          const error = new Error('Invalid order item');
-          error.statusCode = 400;
-          throw error;
+        if (!Number.isInteger(menuItemId) || !Number.isInteger(quantity) || quantity < 1 || quantity > 20) {
+          throw new CheckoutError(400, 'Invalid order item');
+        }
+        if (spiceLevel !== null && !SPICE_LEVELS.includes(spiceLevel)) {
+          throw new CheckoutError(400, `Unknown spice level ${spiceLevel}`);
         }
 
         const menuResult = await client.query(
-          'SELECT id, name, price_cents FROM menu_items WHERE id = $1',
+          'SELECT id, name, section, price_cents FROM menu_items WHERE id = $1',
           [menuItemId],
         );
 
         if (menuResult.rowCount === 0) {
-          const error = new Error(`Menu item ${menuItemId} was not found`);
-          error.statusCode = 400;
-          throw error;
+          throw new CheckoutError(400, `Menu item ${menuItemId} was not found`);
         }
 
         const menuItem = menuResult.rows[0];
-        totalCents += menuItem.price_cents * quantity;
-        orderItems.push({ menuItem, quantity });
+        if (spiceLevel !== null && menuItem.section === 'DRINKS') {
+          throw new CheckoutError(422, `Spice level cannot be set on drinks (${menuItem.name})`);
+        }
+        orderItems.push({ menuItem, quantity, spiceLevel });
       }
 
+      const price = priceOrder(
+        orderItems.map((l) => ({ priceCents: l.menuItem.price_cents, quantity: l.quantity, spiceLevel: l.spiceLevel })),
+        checkout,
+      );
+
       const orderResult = await client.query(
-        'INSERT INTO orders (user_id, status, total_cents) VALUES ($1, $2, $3) RETURNING id, status, total_cents, created_at',
-        [req.user.id, 'received', totalCents],
+        `INSERT INTO orders (
+           user_id, status, total_cents, delivery_method, planet, delivery_address, delivery_instructions,
+           payment_method, tip_percent, coupon_code, subtotal_cents, delivery_fee_cents, discount_cents,
+           tip_cents, estimated_minutes
+         ) VALUES ($1, 'received', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+         RETURNING *`,
+        [
+          req.user.id,
+          price.totalCents,
+          checkout.delivery.method,
+          checkout.delivery.planet,
+          checkout.delivery.address,
+          checkout.delivery.instructions,
+          checkout.payment.method,
+          Number(checkout.payment.tipPercent),
+          checkout.couponCode,
+          price.subtotalCents,
+          price.deliveryFeeCents,
+          price.discountCents,
+          price.tipCents,
+          price.estimatedMinutes,
+        ],
       );
       const createdOrder = orderResult.rows[0];
 
       for (const item of orderItems) {
         await client.query(
-          'INSERT INTO order_items (order_id, menu_item_id, name, price_cents, quantity) VALUES ($1, $2, $3, $4, $5)',
+          'INSERT INTO order_items (order_id, menu_item_id, name, price_cents, quantity, spice_level) VALUES ($1, $2, $3, $4, $5, $6)',
           [
             createdOrder.id,
             item.menuItem.id,
             item.menuItem.name,
             item.menuItem.price_cents,
             item.quantity,
+            item.spiceLevel,
           ],
         );
       }
@@ -199,14 +254,7 @@ app.post('/orders', requireUser, async (req, res, next) => {
       return createdOrder;
     });
 
-    return res.status(201).json({
-      order: {
-        id: order.id,
-        status: order.status,
-        totalCents: order.total_cents,
-        createdAt: order.created_at,
-      },
-    });
+    return res.status(201).json({ order: orderDto(order) });
   } catch (error) {
     return next(error);
   }
@@ -215,24 +263,11 @@ app.post('/orders', requireUser, async (req, res, next) => {
 app.get('/orders', requireUser, async (req, res, next) => {
   try {
     const result = await query(
-      `
-        SELECT id, status, total_cents, created_at, updated_at
-        FROM orders
-        WHERE user_id = $1
-        ORDER BY created_at DESC
-      `,
+      'SELECT * FROM orders WHERE user_id = $1 ORDER BY created_at DESC',
       [req.user.id],
     );
 
-    return res.json({
-      orders: result.rows.map((row) => ({
-        id: row.id,
-        status: row.status,
-        totalCents: row.total_cents,
-        createdAt: row.created_at,
-        updatedAt: row.updated_at,
-      })),
-    });
+    return res.json({ orders: result.rows.map(orderDto) });
   } catch (error) {
     return next(error);
   }
@@ -247,7 +282,7 @@ app.get('/orders/:id/status', requireUser, async (req, res, next) => {
     }
 
     const result = await query(
-      'SELECT id, status, updated_at FROM orders WHERE id = $1 AND user_id = $2',
+      'SELECT id, status, updated_at, delivery_method, estimated_minutes FROM orders WHERE id = $1 AND user_id = $2',
       [orderId, req.user.id],
     );
 
@@ -260,6 +295,8 @@ app.get('/orders/:id/status', requireUser, async (req, res, next) => {
       order: {
         id: order.id,
         status: order.status,
+        deliveryMethod: order.delivery_method,
+        estimatedMinutes: order.estimated_minutes,
         updatedAt: order.updated_at,
       },
     });

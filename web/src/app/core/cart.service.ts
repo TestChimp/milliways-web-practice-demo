@@ -2,7 +2,17 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { ApiService } from './api.service';
 import { AuthService } from './auth.service';
-import { BackendOrder, BackendOrderStatus, CartLine, MenuItem } from './models';
+import { BackendOrder, BackendOrderStatus, CartLine, CheckoutOptions, MenuItem, SpiceLevel } from './models';
+
+const DEFAULT_CHECKOUT: CheckoutOptions = {
+  deliveryMethod: 'STANDARD',
+  planet: 'EARTH',
+  address: '',
+  instructions: '',
+  paymentMethod: 'CARD',
+  tipPercent: 0,
+  couponCode: '',
+};
 
 @Injectable({ providedIn: 'root' })
 export class CartService {
@@ -10,6 +20,7 @@ export class CartService {
   private readonly auth = inject(AuthService);
 
   readonly lines = signal<CartLine[]>([]);
+  readonly checkout = signal<CheckoutOptions>({ ...DEFAULT_CHECKOUT });
   readonly submittedOrder = signal<BackendOrder | null>(null);
   readonly latestOrderStatus = signal<BackendOrderStatus | null>(null);
 
@@ -20,11 +31,15 @@ export class CartService {
     this.lines().reduce((sum, line) => sum + line.quantity, 0),
   );
 
-  addItem(item: MenuItem, quantity: number): void {
+  addItem(item: MenuItem, quantity: number, spiceLevel?: SpiceLevel): void {
     this.lines.update((lines) => [
       ...lines,
-      { id: crypto.randomUUID(), menuItem: item, quantity },
+      { id: crypto.randomUUID(), menuItem: item, quantity, spiceLevel },
     ]);
+  }
+
+  updateCheckout(patch: Partial<CheckoutOptions>): void {
+    this.checkout.update((c) => ({ ...c, ...patch }));
   }
 
   removeLine(lineId: string): void {
@@ -33,6 +48,7 @@ export class CartService {
 
   clearOrder(): void {
     this.lines.set([]);
+    this.checkout.set({ ...DEFAULT_CHECKOUT });
     this.submittedOrder.set(null);
     this.latestOrderStatus.set(null);
   }
@@ -45,13 +61,28 @@ export class CartService {
     const items = this.lines().map((l) => ({
       menuItemId: l.menuItem.id,
       quantity: l.quantity,
+      ...(l.spiceLevel ? { spiceLevel: l.spiceLevel } : {}),
     }));
+    const c = this.checkout();
+    const request = {
+      items,
+      delivery: {
+        method: c.deliveryMethod,
+        planet: c.planet,
+        ...(c.address.trim() ? { address: c.address.trim() } : {}),
+        ...(c.instructions.trim() ? { instructions: c.instructions.trim() } : {}),
+      },
+      payment: { method: c.paymentMethod, tipPercent: c.tipPercent },
+      ...(c.couponCode.trim() ? { couponCode: c.couponCode.trim() } : {}),
+    };
     try {
-      const order = await firstValueFrom(this.api.createOrder(items, token));
+      const order = await firstValueFrom(this.api.createOrder(request, token));
       this.submittedOrder.set(order);
       this.latestOrderStatus.set({
         id: order.id,
         status: order.status,
+        deliveryMethod: order.delivery?.method,
+        estimatedMinutes: order.delivery?.estimatedMinutes,
         updatedAt: order.createdAt,
       });
       return { ok: true };

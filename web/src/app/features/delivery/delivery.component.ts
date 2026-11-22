@@ -16,6 +16,12 @@ export class DeliveryComponent implements OnInit, OnDestroy {
 
   readonly minutesRemaining = signal(this.randomMinutes());
   readonly statusText = signal('Checking status...');
+  readonly order = this.cart.submittedOrder;
+
+  methodLabel(): string {
+    const method = this.order()?.delivery?.method ?? 'STANDARD';
+    return method === 'PICKUP' ? 'Ready for pickup' : `${method.charAt(0)}${method.slice(1).toLowerCase()} delivery`;
+  }
 
   private pollTimer?: ReturnType<typeof setInterval>;
   private countdownTimer?: ReturnType<typeof setInterval>;

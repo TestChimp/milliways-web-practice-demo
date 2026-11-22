@@ -48,3 +48,9 @@ docker-compose.override.yml
 *.dll
 *.exe
 *.out
+
+.claude/.mcp.json
+.testchimp/
+tests/test-results/
+tests/playwright-report/
+tests/blob-report/

@@ -19,6 +19,9 @@
           <span class="swatch" [style.background]="itemColor(line.menuItem.color)"></span>
           <div class="line-info">
             <span class="name">{{ line.menuItem.name }}</span>
+            @if (line.spiceLevel) {
+              <span class="spice-tag">{{ spiceLabel(line.spiceLevel) }}</span>
+            }
             <span class="qty">{{ line.quantity }} × ₭{{ line.menuItem.price | number: '1.2-2' }}</span>
           </div>
           <span class="line-total">₭{{ line.quantity * line.menuItem.price | number: '1.2-2' }}</span>
@@ -31,6 +34,83 @@
         <span>₭{{ totalPrice() | number: '1.2-2' }}</span>
       </li>
     </ul>
+
+    <section class="checkout" aria-label="Checkout options">
+      <fieldset>
+        <legend>Delivery</legend>
+        @for (m of deliveryMethods; track m.value) {
+          <label class="radio">
+            <input
+              type="radio"
+              name="deliveryMethod"
+              [value]="m.value"
+              [checked]="checkout().deliveryMethod === m.value"
+              (change)="update('deliveryMethod', m.value)"
+            />
+            {{ m.label }}
+          </label>
+        }
+      </fieldset>
+
+      <label class="field">
+        Planet
+        <select aria-label="Planet" (change)="update('planet', $any($event.target).value)">
+          @for (p of planets; track p.value) {
+            <option [value]="p.value" [selected]="checkout().planet === p.value">{{ p.label }}</option>
+          }
+        </select>
+      </label>
+
+      @if (checkout().deliveryMethod !== 'PICKUP') {
+        <label class="field">
+          Delivery address
+          <input
+            type="text"
+            aria-label="Delivery address"
+            placeholder="e.g. 42 Slartibartfast Way"
+            [value]="checkout().address"
+            (input)="update('address', $any($event.target).value)"
+          />
+        </label>
+        <label class="field">
+          Instructions for the courier
+          <input
+            type="text"
+            aria-label="Delivery instructions"
+            [value]="checkout().instructions"
+            (input)="update('instructions', $any($event.target).value)"
+          />
+        </label>
+      }
+
+      <label class="field">
+        Payment
+        <select aria-label="Payment method" (change)="update('paymentMethod', $any($event.target).value)">
+          @for (p of paymentMethods; track p.value) {
+            <option [value]="p.value" [selected]="checkout().paymentMethod === p.value">{{ p.label }}</option>
+          }
+        </select>
+      </label>
+
+      <label class="field">
+        Tip
+        <select aria-label="Tip" (change)="update('tipPercent', +$any($event.target).value)">
+          @for (t of tipPercents; track t) {
+            <option [value]="t" [selected]="checkout().tipPercent === t">{{ t }}%</option>
+          }
+        </select>
+      </label>
+
+      <label class="field">
+        Coupon code
+        <input
+          type="text"
+          aria-label="Coupon code"
+          [value]="checkout().couponCode"
+          (input)="update('couponCode', $any($event.target).value)"
+        />
+      </label>
+    </section>
 
     @if (orderError()) {
       <p class="order-err" role="alert">{{ orderError() }}</p>

@@ -6,7 +6,7 @@ import {
   AuthSession,
   BackendOrder,
   BackendOrderStatus,
-  CreateOrderItem,
+  CreateOrderRequest,
   menuItemFromDto,
   MenuSection,
 } from './models';
@@ -33,15 +33,15 @@ export class ApiService {
         map((r) =>
           r.sections.map((s) => ({
             title: s.title,
-            items: s.items.map(menuItemFromDto),
+            items: s.items.map((i) => menuItemFromDto(i, s.title)),
           })),
         ),
       );
   }
 
-  createOrder(items: CreateOrderItem[], token: string): Observable<BackendOrder> {
+  createOrder(request: CreateOrderRequest, token: string): Observable<BackendOrder> {
     return this.http
-      .post<{ order: BackendOrder }>(`${this.base}/orders`, { items }, this.authHeaders(token))
+      .post<{ order: BackendOrder }>(`${this.base}/orders`, request, this.authHeaders(token))
       .pipe(map((r) => r.order));
   }
 
