@@ -40,7 +40,9 @@ test.describe('Menu', () => {
     await markScreenState('Menu', 'order in progress');
 
     await app.openOrder();
-    await expect(page.getByText('3 × ₭22.00')).toBeVisible();
+    const line = page.locator('.line-list li').filter({ hasText: 'Green Salad' });
+    await expect(line).toContainText('3 × ₭22.00');
+    await expect(line).toContainText('₭66.00');
   });
 
   test('choose a spice level for a main dish', {
